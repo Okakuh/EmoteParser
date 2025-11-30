@@ -10,6 +10,7 @@ from pathlib import Path
 from time import sleep
 
 
+
 this_folder = getcwd()
 exe_config_folder_name = "EmotesParserConfig"
 exe_config_name = "config.json"
@@ -36,7 +37,7 @@ class Config:
             "symbol_chat_exemple_dir": "symbol-chat.exemple",
             "where_to_save_symbol_chat_exemple": "assets",
             "result_name": "peepo",
-            "do_zip_folder": False
+            "archive_if_was_not?": False
             }
 
     
@@ -189,11 +190,13 @@ def main():
     wide_emotes_group_name = config.get("wide_emotes_group_name")
     where_to_save_symbol_chat_exemple = config.get("where_to_save_symbol_chat_exemple")
     result_name = config.get("result_name")
-    do_zip_folder = config.get("do_zip_folder")
+    archive_if_was_not = config.get("archive_if_was_not?")
     symbol_chat_exemple = config.get("symbol_chat_exemple_dir")
     
     result = ''
-
+    
+    print("Parsing emotes...")
+    
     found_emotes = get_emotes_from(path_to_use_pack, get_emotes_data_from, how_to_define_if_emote, emotes_dir)
     if not found_emotes:
         print("No emotes found in the pack.")
@@ -201,12 +204,17 @@ def main():
 
     wide_emotes = []
     
+    print("Looking for wide emotes...")
+
     for emote in list(found_emotes):
         emote: Emote = emote
         if emote.width >= emote.height * wide_width_to_height:
             wide_emotes.append(emote)
             found_emotes.remove(emote)
-
+    
+    print(f"Found {len(wide_emotes)} wide emotes.")
+    print()
+    print("Grouping emotes...")
     grouped_emotes = {}
 
     for group_prefix in group_prefixes:
@@ -217,7 +225,11 @@ def main():
                     grouped_emotes[group_prefix] = []
                 grouped_emotes[group_prefix].append(emote)
                 found_emotes.remove(emote)
-    
+    print("Done.")
+    print()
+    print("Adding emotes to result...")
+    print("Adding grouped emotes...")
+
     for group in grouped_emotes:
         result += group
         if len(result) % tab_width != 0:
@@ -227,7 +239,8 @@ def main():
             result += emote.char
         if len(result) % tab_width != 0:
             result += " " * (tab_width - (len(result) % tab_width))
-
+    print("Done.")
+    print("Adding non-grouped emotes...")
     
     result += non_grouped_emotes_group_name
     if len(non_grouped_emotes_group_name) % tab_width != 0:
@@ -238,7 +251,8 @@ def main():
     
     if len(result) % tab_width != 0:
         result += " " * (tab_width - (len(result) % tab_width))
-
+    print("Done.")
+    print("Adding wide emotes...")
 
     result += wide_emotes_group_name
     if len(wide_emotes_group_name) % tab_width != 0:
@@ -250,22 +264,33 @@ def main():
                 result += " " * (tab_width - (len(result) % tab_width))
         result += f" {emote.char} "
 
-    print(result)
+    print("Done.")
+    print("Copying exemple symbol chat...")
 
     where_to_save_symbol_chat_exemple_modify = f"{path_to_use_pack}/{where_to_save_symbol_chat_exemple}/{symbol_chat_exemple.replace('.exemple', '')}"
     
     copytree(f"{config_dir}/{symbol_chat_exemple}", where_to_save_symbol_chat_exemple_modify, dirs_exist_ok=True)
     
+    print("Done.")
+    print("Looking for result.txt...")
+
     result_txt = ""
     for root, _, files in walk(where_to_save_symbol_chat_exemple_modify):
         for file in files:
             if file == "result.txt":
                 result_txt = path.join(root, file)
 
+    if result_txt == "":
+        print("result.txt not found.")
+        return
     
+    print("Writing result to result.txt...")
+
     with open(result_txt, 'w', encoding='utf-8') as f:
         f.write(result)
-
+    
+    print("Done.")
+    print("Finalizing...")
 
     result_rename_to = f"{Path(result_txt).parent}/{result_name}.txt"
     if path.exists(result_rename_to):
@@ -277,10 +302,21 @@ def main():
     
     renames(path_to_use_pack, modified_path)
     
-    if if_zip or do_zip_folder:
+    print("Modified pack created.")
+    print("Was arcived:", if_zip)
+    print("If was not arcived convert to archive?:", archive_if_was_not)
+    
+    if if_zip or archive_if_was_not:
+        print("Creating archive...")
         make_archive(modified_path, 'zip', modified_path)
+        print("Archive created.")
+        print("Cleaning up...")
         rmtree(modified_path)
+        print("Done.")
+    
+    print("Emotes parsing completed successfully.")
 
 if __name__ == "__main__":
     main()
     sleep(15)
+    print("WIndow will close in 15 seconds...")
